@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-
 import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,17 +19,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.example.imperial_kurtxanderfrancois2.api.ProductApiService
+import com.example.imperial_kurtxanderfrancois2.api.RetrofitClient
 import com.example.imperial_kurtxanderfrancois2.data.ProductDatabase
 import com.example.imperial_kurtxanderfrancois2.data.ProductEntity
 import com.example.imperial_kurtxanderfrancois2.data.ProductRepository
 import com.example.imperial_kurtxanderfrancois2.ui.ProductViewModel
 import com.example.imperial_kurtxanderfrancois2.ui.ProductViewModelFactory
 import com.example.imperial_kurtxanderfrancois2.ui.theme.Imperial_kurtxanderfrancois2Theme
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -37,24 +33,7 @@ import java.util.UUID
 
 class MainActivity : ComponentActivity() {
     private val database by lazy { ProductDatabase.getDatabase(this) }
-    
-    private val apiService by lazy {
-        val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        }
-        val client = OkHttpClient.Builder()
-            .addInterceptor(logging)
-            .build()
-
-        Retrofit.Builder()
-            .baseUrl("https://d9ea8ebe-0506-4b40-a310-b1ea10d13fd6.mock.pstmn.io/")
-            .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(ProductApiService::class.java)
-    }
-
-    private val repository by lazy { ProductRepository(database.productDao(), apiService) }
+    private val repository by lazy { ProductRepository(database.productDao(), RetrofitClient.apiService) }
     private val viewModel: ProductViewModel by viewModels { ProductViewModelFactory(repository) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,7 +80,7 @@ fun ProductListScreen(viewModel: ProductViewModel) {
                 .padding(padding)
         ) {
             items(products) { product ->
-                ProductItem(product = product, onClick = {
+                ProductItem(product = product, onEditClick = {
                     selectedProduct = product
                     showDialog = true
                 })
@@ -123,7 +102,7 @@ fun ProductListScreen(viewModel: ProductViewModel) {
 }
 
 @Composable
-fun ProductItem(product: ProductEntity, onClick: () -> Unit) {
+fun ProductItem(product: ProductEntity, onEditClick: () -> Unit) {
     val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()) }
     val lastModifiedText = remember(product.lastModified) {
         dateFormat.format(Date(product.lastModified))
@@ -133,7 +112,6 @@ fun ProductItem(product: ProductEntity, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier
@@ -142,7 +120,7 @@ fun ProductItem(product: ProductEntity, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(text = product.name, style = MaterialTheme.typography.titleLarge)
                 Text(text = "Price: $${product.price}", style = MaterialTheme.typography.bodyMedium)
                 Text(
@@ -153,6 +131,9 @@ fun ProductItem(product: ProductEntity, onClick: () -> Unit) {
                 if (!product.isSynced) {
                     Text(text = "Unsynced", color = Color.Red, style = MaterialTheme.typography.labelSmall)
                 }
+            }
+            IconButton(onClick = onEditClick) {
+                Icon(Icons.Default.Edit, contentDescription = "Edit Product")
             }
         }
     }

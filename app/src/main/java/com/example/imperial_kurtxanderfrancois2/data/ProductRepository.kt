@@ -18,16 +18,43 @@ class ProductRepository(
                 val remoteProducts = apiService.getProducts()
                 val localProducts = productDao.getAllProducts().first()
                 
+                val remoteIds = remoteProducts.map { it.id }.toSet()
+                
+                // Identify products to delete (in local but not in remote and was already synced)
+                val idsToDelete = localProducts
+                    .filter { it.id !in remoteIds && it.isSynced }
+                    .map { it.id }
+                
+                if (idsToDelete.isNotEmpty()) {
+                    productDao.deleteProductsByIds(idsToDelete)
+                }
+                
                 val productsToUpdate = mutableListOf<ProductEntity>()
                 
                 for (remote in remoteProducts) {
                     val local = localProducts.find { it.id == remote.id }
                     if (local == null) {
-                        productsToUpdate.add(remote.copy(isSynced = true))
+                        productsToUpdate.add(
+                            ProductEntity(
+                                id = remote.id,
+                                name = remote.name,
+                                price = remote.price,
+                                lastModified = remote.lastModified,
+                                isSynced = true
+                            )
+                        )
                     } else {
                         // Conflict Resolution Strategy
                         if (remote.lastModified >= local.lastModified) {
-                            productsToUpdate.add(remote.copy(isSynced = true))
+                            productsToUpdate.add(
+                                ProductEntity(
+                                    id = remote.id,
+                                    name = remote.name,
+                                    price = remote.price,
+                                    lastModified = remote.lastModified,
+                                    isSynced = true
+                                )
+                            )
                         }
                     }
                 }

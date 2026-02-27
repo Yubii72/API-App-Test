@@ -19,4 +19,10 @@ interface ProductDao {
 
     @Query("SELECT * FROM products WHERE isSynced = 0")
     suspend fun getUnsyncedProducts(): List<ProductEntity>
+
+    @Delete
+    suspend fun deleteProduct(product: ProductEntity)
+
+    @Query("DELETE FROM products WHERE id IN (:ids)")
+    suspend fun deleteProductsByIds(ids: List<String>)
 }
